@@ -1,3 +1,4 @@
+import os
 import sys
 import asyncio
 import logging
@@ -32,8 +33,7 @@ async def handle_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error in mention handler: {e}")
 
-async def main():
-    """Main async function to run the bot."""
+async def main(): 
     Config.setup_logging()
     
     try:
@@ -41,8 +41,7 @@ async def main():
     except ValueError as e:
         logger.error(f"Configuration error: {e}")
         sys.exit(1)
-    
-    # Create application
+     
     application = ApplicationBuilder().token(Config.BOT_TOKEN).build()
      
     application.add_handler(CommandHandler("ban", UserHandlers.ban_user))
@@ -64,8 +63,7 @@ async def main():
     application.add_handler(
         MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, UserHandlers.farewell_member)
     )
-    
-    # Mention handler
+     
     application.add_handler(
         MessageHandler(filters.Entity("mention") | filters.Entity("text_mention"), handle_mention)
     )
@@ -74,10 +72,32 @@ async def main():
     logger.info("🚀 Starting Telegram Bot...")
     print("🤖 Admin & Greeting bot running on Render...")
      
-    await application.run_polling(
-        drop_pending_updates=True,
-        allowed_updates=['message', 'chat_member']
-    )
+    try: 
+        await application.initialize()
+         
+        await application.start()
+         
+        await application.updater.start_polling(
+            drop_pending_updates=True,
+            allowed_updates=['message', 'chat_member']
+        )
+         
+        while True:
+            await asyncio.sleep(3600)  
+            
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
+    except Exception as e:
+        logger.error(f"Error while running bot: {e}")
+        raise
+    finally:
+        # Clean shutdown
+        try:
+            await application.updater.stop()
+            await application.stop()
+            await application.shutdown()
+        except Exception as e:
+            logger.error(f"Error during shutdown: {e}")
 
 if __name__ == '__main__':
     try: 
@@ -85,5 +105,5 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
     except Exception as e:
-        logger.error(f"Fatal error while running bot: {e}")
+        logger.error(f"Fatal error: {e}")
         sys.exit(1)
