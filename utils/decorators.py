@@ -23,18 +23,14 @@ def get_target_user(func):
     """Decorator to extract target user from reply or mention."""
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
-        target_user = None 
+        target_user = None
+        
         if update.message.reply_to_message:
-            target_user = update.message.reply_to_message.from_user 
-            
+            target_user = update.message.reply_to_message.from_user
+        
         if not target_user and context.args:
             username = context.args[0].replace('@', '')
-            try:
-                # TODO
-                # Try to get user by username (might need additional logic)
-                pass
-            except:
-                pass
+            # Additional logic to find user by username could be added
         
         if not target_user:
             await update.message.reply_text("⚠️ Please reply to the user's message or provide a username.")
