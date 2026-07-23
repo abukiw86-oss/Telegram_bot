@@ -25,28 +25,53 @@
 ```
 
 
-## how the bot works on telegram 
+# Telegram Bot
 
-Delete Message: /delete (reply to message)
+A feature-rich Telegram group management bot with admin controls and automated moderation.
 
-Unmute User: /unmute (reply to muted user's message)
+## Features
 
-List Muted Users: /muted - shows all muted users
+- 👋 Welcome new members
+- 💔 Farewell messages for leaving members
+- 👑 Admin-only commands:
+  - Ban users
+  - Mute/Unmute users
+  - List muted users
+  - Delete messages
+  - Clear messages (bulk delete)
+  - Remove users by username
+  - Schedule group self-destruction
+  - Cancel scheduled destruction
+ 
+## Local Development
 
-Clear Messages:
+1. Clone the repository
+2. Create a `.env` file with your `BOT_TOKEN`
+3. Install dependencies: `pip install -r requirements.txt`
+4. Run: `python main.py`
 
-/clear 50 - clear last 50 messages
+## Bot Commands
+/ban - Ban a user (reply to their message)
+/mute - Mute a user (reply to their message)
+/unmute - Unmute a user (reply to their message)
+/muted - List all muted users
+/delete or /purge - Delete a message (reply to it)
+/clear <count|now> - Clear messages
+/remove_user @username - Remove user by username
+/destroy <time> - Self-destruct group (30d/12h/45m)
+/cancel_destroy - Cancel scheduled destruction
 
-/clear now - clear immediately
+text
 
-Self-Destruction:
+## Environment Variables
 
-/destroy 30d - destroy in 30 days
+| Variable | Description | Required |
+|----------|-------------|----------|
+| BOT_TOKEN | Telegram Bot Token | Yes |
+| DEFAULT_EXPIRY_YEARS | Default group destruction time | No (default: 10) |
+| LOG_LEVEL | Logging level (INFO, DEBUG, etc.) | No (default: INFO) |
 
-/destroy 12h - destroy in 12 hours
+## Note
 
-/destroy 45m - destroy in 45 minutes
-
-/cancel_destroy - cancel scheduled destruction
-
-Remove User by Username: /remove_user @username
+- Only group admins can execute moderation commands
+- The bot needs appropriate admin permissions in the group
