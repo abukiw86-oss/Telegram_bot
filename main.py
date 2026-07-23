@@ -8,7 +8,27 @@ from config import Config
 from handlers.admin_handler import AdminHandlers
 from handlers.user_handler import UserHandlers
 
+# Import for web server
+from flask import Flask
+from threading import Thread
+
 logger = logging.getLogger(__name__)
+
+# Create Flask app for health checks
+web_app = Flask(__name__)
+
+@web_app.route('/')
+def health_check():
+    return "Bot is running!", 200
+
+@web_app.route('/health')
+def health():
+    return {"status": "healthy"}, 200
+
+def run_web_server():
+    """Run a simple web server to keep Render happy."""
+    port = int(os.environ.get('PORT', 10000))
+    web_app.run(host='0.0.0.0', port=port)
 
 async def handle_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle bot mention to show menu."""
@@ -41,6 +61,11 @@ async def main():
     except ValueError as e:
         logger.error(f"Configuration error: {e}")
         sys.exit(1)
+    
+    # Start web server in a separate thread
+    web_thread = Thread(target=run_web_server, daemon=True)
+    web_thread.start()
+    logger.info(f"🌐 Web server started on port {os.environ.get('PORT', 10000)}")
      
     application = ApplicationBuilder().token(Config.BOT_TOKEN).build()
      
@@ -74,9 +99,7 @@ async def main():
      
     try: 
         await application.initialize()
-         
         await application.start()
-         
         await application.updater.start_polling(
             drop_pending_updates=True,
             allowed_updates=['message', 'chat_member']
@@ -91,7 +114,6 @@ async def main():
         logger.error(f"Error while running bot: {e}")
         raise
     finally:
-        # Clean shutdown
         try:
             await application.updater.stop()
             await application.stop()
