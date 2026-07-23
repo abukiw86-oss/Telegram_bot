@@ -1,127 +1,79 @@
-import os
 import logging
-from dotenv import load_dotenv
-from telegram import Update , ChatAdministratorRights , ChatPermissions
+from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
- 
-load_dotenv()
+from config import Config
+from handlers.admin_handler import AdminHandlers
+from handlers.user_handler import UserHandlers
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
- 
-async def is_user_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
+logger = logging.getLogger(__name__)
+
+class TelegramBot:
+    """Main bot class."""
     
-    member = await context.bot.get_chat_member(chat_id, user_id)
-    return member.status in ['administrator', 'creator']
-
-
-async def greet_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE): 
-    for new_member in update.message.new_chat_members: 
-        if new_member.id == context.bot.id:
-            continue 
-            
-        first_name = new_member.first_name
-        welcome_text = f"Welcome to the group, {first_name}! 👋\nGlad to have you here!"
-        await update.message.reply_text(welcome_text)
-
-
-async def farewell_left_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Sends a dramatic pity/farewell message when someone leaves."""
-    left_member = update.message.left_chat_member
-    if left_member.id == context.bot.id:
-        return
+    def __init__(self):
+        Config.setup_logging()
+        Config.validate()
+        self.token = Config.BOT_TOKEN
+        self.application = None
+        self._setup_handlers()
+    
+    def _setup_handlers(self):
+        """Setup all command and message handlers."""
+        self.application = ApplicationBuilder().token(self.token).build()
         
-    first_name = left_member.first_name
-    farewell_text = (
-        f"Oh no, {first_name} left us... 💔😢\n\n"
-        f"Was it something we said? We'll miss you!\n"
-        f"If you ever change your mind, the door is always open. Come back soon! 🥺"
-    )
-    await update.message.reply_text(farewell_text)
-
-
-async def handle_bot_mention(update: Update, context: ContextTypes.DEFAULT_TYPE): 
-    bot_username = context.bot.username
-    
-    menu_text = (
-        f"⚡ **{bot_username} Admin Commands & Actions** ⚡\n\n"
-        f"👑 *Admin-Only Commands:*\n"
-        f"• `/ban` (or reply to a user with `/ban`) - Remove member from group\n"
-        f"• `/unban` `<user_id>` - Unban a user\n"
-        f"• `/mute` - Mute a member (reply to their message)\n"
-        f"• `/unmute` - Unmute a member\n"
-        f"• `/pin` - Pin a message (reply to message)\n"
-        f"• `/purge` - Delete referenced message\n\n"
-        f"ℹ️ *Note:* Non-admins cannot execute moderation actions!"
-    )
-    
-    await update.message.reply_text(menu_text, parse_mode="Markdown")
-
-
-async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):  
-    if not await is_user_admin(update, context):
-        await update.message.reply_text("❌ Permission Denied: Only admins can perform this action.")
-        return
- 
-    target_user = None
-    if update.message.reply_to_message:
-        target_user = update.message.reply_to_message.from_user
-    
-    if not target_user:
-        await update.message.reply_text("⚠️ Please reply to the user's message you want to ban with `/ban`.")
-        return
- 
-    target_member = await context.bot.get_chat_member(update.effective_chat.id, target_user.id)
-    if target_member.status in ['administrator', 'creator']:
-        await update.message.reply_text("⚠️ You cannot ban another admin!")
-        return
- 
-    try:
-        await context.bot.ban_chat_member(update.effective_chat.id, target_user.id)
-        await update.message.reply_text(f"🚫 {target_user.first_name} (@{target_user.username}) has been removed from the group.")
-    except Exception as e:
-        await update.message.reply_text(f"Failed to remove user: {str(e)}")
-
-
-async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE): 
-    if not await is_user_admin(update, context):
-        await update.message.reply_text("❌ Permission Denied: Only admins can perform this action.")
-        return
-
-    if not update.message.reply_to_message:
-        await update.message.reply_text("⚠️ Reply to the user's message with `/mute` to mute them.")
-        return
-
-    target_user = update.message.reply_to_message.from_user
-    
-    from telegram import ChatPermissions
-    no_permissions = ChatPermissions(can_send_messages=False)
-
-    try:
-        await context.bot.restrict_chat_member(update.effective_chat.id, target_user.id, permissions=no_permissions)
-        await update.message.reply_text(f"🤐 {target_user.first_name} has been muted.")
-    except Exception as e:
-        await update.message.reply_text(f"Failed to mute user: {str(e)}")
+        # User-related commands
+        self.application.add_handler(CommandHandler("ban", UserHandlers.ban_user))
+        self.application.add_handler(CommandHandler("remove", UserHandlers.ban_user))
+        self.application.add_handler(CommandHandler("mute", UserHandlers.mute_user))
+        self.application.add_handler(CommandHandler("unmute", AdminHandlers.unmute_user))
+        self.application.add_handler(CommandHandler("muted", AdminHandlers.list_muted_users))
+        self.application.add_handler(CommandHandler("remove_user", UserHandlers.remove_user_by_username))
         
-if __name__ == '__main__': 
-    token = os.environ.get("BOT_TOKEN")
+        # Admin commands
+        self.application.add_handler(CommandHandler("delete", AdminHandlers.delete_message))
+        self.application.add_handler(CommandHandler("clear", AdminHandlers.clear_messages))
+        self.application.add_handler(CommandHandler("destroy", AdminHandlers.schedule_destruction))
+        self.application.add_handler(CommandHandler("cancel_destroy", AdminHandlers.cancel_destruction))
+        
+        # Status updates
+        self.application.add_handler(
+            MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, UserHandlers.greet_new_member)
+        )
+        self.application.add_handler(
+            MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, UserHandlers.farewell_member)
+        )
+        
+        # Mention handler
+        self.application.add_handler(
+            MessageHandler(filters.Entity("mention") | filters.Entity("text_mention"), self._handle_mention)
+        )
+    
+    async def _handle_mention(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle bot mention to show menu."""
+        bot_username = context.bot.username
+        
+        menu_text = (
+            f"⚡ **{bot_username} Admin Commands & Actions** ⚡\n\n"
+            f"👑 *Admin-Only Commands:*\n"
+            f"• `/ban` (or reply with `/ban`) - Remove member\n"
+            f"• `/unmute` - Unmute a member (reply to their message)\n"
+            f"• `/muted` - List all muted users\n"
+            f"• `/delete` - Delete a message (reply to it)\n"
+            f"• `/clear <count|now>` - Clear messages\n"
+            f"• `/remove_user @username` - Remove user by username\n"
+            f"• `/destroy <time>` - Self-destruct group (30d/12h/45m)\n"
+            f"• `/cancel_destroy` - Cancel scheduled destruction\n\n"
+            f"ℹ️ *Note:* Non-admins cannot execute moderation actions!"
+        )
+        
+        await update.message.reply_text(menu_text, parse_mode="Markdown")
+    
+    def run(self):
+        """Start the bot."""
+        logger.info("🚀 Starting Telegram Bot...")
+        print("Admin & Greeting bot running...")
+        self.application.run_polling()
 
-    if not token:
-        raise ValueError("BOT_TOKEN is missing! Make sure it is set in your .env file or environment.")
-
-    app = ApplicationBuilder().token(token).build()
- 
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, greet_new_member))
-    app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, farewell_left_member))
-     
-    app.add_handler(MessageHandler(filters.Entity("mention") | filters.Entity("text_mention"), handle_bot_mention))
- 
-    app.add_handler(CommandHandler("ban", ban_user))
-    app.add_handler(CommandHandler("remove", ban_user))
-    app.add_handler(CommandHandler("mute", mute_user)) 
-    print("Admin & Greeting bot running...")
-    app.run_polling()
+if __name__ == '__main__':
+    bot = TelegramBot()
+    bot.run()
