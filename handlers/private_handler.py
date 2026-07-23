@@ -284,8 +284,7 @@ class PrivateHandlers:
                 
         except Exception as e:
             logger.error(f"Error showing about: {e}")
-    
-    # ========== ADMIN TOOLS MENU ==========
+     
     @staticmethod
     async def show_admin_tools(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show admin tools menu."""
@@ -329,8 +328,7 @@ class PrivateHandlers:
                 
         except Exception as e:
             logger.error(f"Error showing admin tools: {e}")
-    
-    # ========== STATS MENU ==========
+     
     @staticmethod
     async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show bot statistics."""
@@ -368,8 +366,7 @@ class PrivateHandlers:
                 
         except Exception as e:
             logger.error(f"Error showing stats: {e}")
-    
-    # ========== HELP MENU ==========
+     
     @staticmethod
     async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show help menu."""
@@ -406,8 +403,7 @@ class PrivateHandlers:
                 
         except Exception as e:
             logger.error(f"Error showing help: {e}")
-    
-    # ========== FAQ ==========
+     
     @staticmethod
     async def show_faq(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show FAQ."""
@@ -446,33 +442,27 @@ class PrivateHandlers:
                 
         except Exception as e:
             logger.error(f"Error showing FAQ: {e}")
-    
-    # ========== HANDLE CALLBACK QUERIES ==========
+     
     @staticmethod
     async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle all callback queries from inline keyboards."""
         query = update.callback_query
         data = query.data
-        
-        # Map callback data to functions
-        menu_map = {
-            # Main menu
+         
+        menu_map = { 
             "menu_home": PrivateHandlers.show_main_menu,
-            "menu_commands": PrivateHandlers.show_commands_menu,
+            "menu_commands": PrivateHandlers.show_all_commands,
             "menu_about": PrivateHandlers.show_about,
             "menu_admin": PrivateHandlers.show_admin_tools,
             "menu_stats": PrivateHandlers.show_stats,
             "menu_help": PrivateHandlers.show_help,
-            
-            # Commands submenus
+             
             "menu_user_commands": PrivateHandlers.show_user_commands,
             "menu_admin_commands": PrivateHandlers.show_admin_commands,
             "menu_moderation": PrivateHandlers.show_moderation_menu,
-            
-            # FAQ
+             
             "menu_faq": PrivateHandlers.show_faq,
-            
-            # Command actions (simple responses)
+             
             "cmd_start": lambda u, c: PrivateHandlers._handle_command_action(u, c, "/start"),
             "cmd_help": lambda u, c: PrivateHandlers._handle_command_action(u, c, "/help"),
             "cmd_info": lambda u, c: PrivateHandlers._handle_command_action(u, c, "/info"),
@@ -484,16 +474,14 @@ class PrivateHandlers:
             "cmd_clear": lambda u, c: PrivateHandlers._handle_command_action(u, c, "/clear"),
             "cmd_destroy": lambda u, c: PrivateHandlers._handle_command_action(u, c, "/destroy"),
             "cmd_cancel_destroy": lambda u, c: PrivateHandlers._handle_command_action(u, c, "/cancel_destroy"),
-            
-            # Admin tools
+             
             "admin_ban": lambda u, c: PrivateHandlers._handle_command_action(u, c, "/ban"),
             "admin_mute": lambda u, c: PrivateHandlers._handle_command_action(u, c, "/mute"),
             "admin_muted": lambda u, c: PrivateHandlers._handle_command_action(u, c, "/muted"),
             "admin_clear": lambda u, c: PrivateHandlers._handle_command_action(u, c, "/clear"),
             "admin_destroy": lambda u, c: PrivateHandlers._handle_command_action(u, c, "/destroy"),
         }
-        
-        # Execute the mapped function or show a default response
+         
         if data in menu_map:
             await menu_map[data](update, context)
         else:
@@ -515,8 +503,7 @@ class PrivateHandlers:
             f"💡 *Tip:* Use this command in a group where I'm admin!",
             parse_mode=ParseMode.MARKDOWN
         )
-    
-    # ========== PRIVATE MESSAGE HANDLER ==========
+     
     @staticmethod
     async def handle_private_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle private messages sent directly to the bot."""
@@ -552,4 +539,57 @@ class PrivateHandlers:
                 await PrivateHandlers.show_main_menu(update, context)
                 
         except Exception as e:
-            logger.error(f"Error in private message handler: {e}")
+            logger.error(f"Error in private message handler: {e}") 
+
+    @staticmethod
+    async def show_all_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show all available commands with suggestions."""
+        try:
+            keyboard = [
+                [
+                    InlineKeyboardButton("👤 User Commands", callback_data="menu_user_commands"),
+                    InlineKeyboardButton("👑 Admin Commands", callback_data="menu_admin_commands")
+                ],
+                [
+                    InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_home")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            text = (
+                f"📚 **All Commands**\n\n"
+                f"*Private Chat Commands:*\n"
+                f"┌ `/start` - 🚀 Start the bot\n"
+                f"├ `/help` - ❓ Show help\n"
+                f"├ `/info` - ℹ️ About the bot\n"
+                f"├ `/menu` - 📋 Main menu\n"
+                f"└ `/commands` - 📚 Command list\n\n"
+                f"*Group Commands (Admin Only):*\n"
+                f"┌ `/ban` - 🔨 Ban a user\n"
+                f"├ `/unmute` - 🔊 Unmute a user\n"
+                f"├ `/muted` - 📋 List muted users\n"
+                f"├ `/delete` - 🗑️ Delete a message\n"
+                f"├ `/clear` - 🧹 Clear messages\n"
+                f"├ `/remove_user` - 👤 Remove by username\n"
+                f"├ `/destroy` - 💥 Self-destruct\n"
+                f"└ `/cancel_destroy` - ❌ Cancel destruction\n\n"
+                f"*💡 Type any command to get suggestions!*"
+            )
+            
+            if update.callback_query:
+                await update.callback_query.message.edit_text(
+                    text, 
+                    reply_markup=reply_markup, 
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                await update.callback_query.answer()
+            else:
+                await update.message.reply_text(
+                    text, 
+                    reply_markup=reply_markup, 
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                
+        except Exception as e:
+            logger.error(f"Error showing all commands: {e}")
