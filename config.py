@@ -9,7 +9,15 @@ class Config:
     BOT_TOKEN = os.environ.get("BOT_TOKEN")
     DEFAULT_EXPIRY_YEARS = int(os.environ.get("DEFAULT_EXPIRY_YEARS", 10))
     ENVIRONMENT = os.environ.get("ENVIRONMENT", "production")
-    
+
+    BOT_NAME = "ManageBot"
+    Developer = {
+        "name":"Abubeker",
+        "phone":"+251981566599",
+        "telegram_acc":"@abukiw86"
+    }
+    BOT_VERSION = "1.0.3"
+    CREATED_DATE = "2025"
     @classmethod
     def validate(cls):
         """Validate all required configuration."""
